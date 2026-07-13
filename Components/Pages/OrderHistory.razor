@@ -1,0 +1,45 @@
+@using ResturantManagmentSystemApp.Model
+@using Microsoft.EntityFrameworkCore
+
+
+@page "/orderhistory"
+@inject AppDbContext _context
+
+<h3>Order History</h3>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Order Id</th>
+            <th>Table Id</th>
+            <th>Status</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @if (orders != null)
+        {
+            foreach (var order in orders)
+            {
+                <tr>
+                    <td>@order.Id</td>
+                    <td>@order.TableId</td>
+                    <td>@order.Status</td>
+                    <td>@order.TotalAmount</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code
+{List<Order> orders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // ToList() ki jagah ToListAsync() use karein aur 'await' lagayein
+        orders = await _context.Orders.AsNoTracking().ToListAsync();
+    }
+}
+}

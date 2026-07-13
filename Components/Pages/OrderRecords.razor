@@ -1,0 +1,320 @@
+@page "/order-records"
+@using Microsoft.EntityFrameworkCore
+@using ResturantManagmentSystemApp.Model
+@inject AppDbContext _context
+@inject IJSRuntime JS
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <h2 class="fw-bold" style="color: #1e3a8a;">🍕 Order History — Pizza Palace</h2>
+    </div>
+
+    <div class="card mb-4 border-0 shadow-sm bg-white rounded-3 p-2">
+        <div class="card-body p-2">
+            <div class="input-group border-0">
+                <span class="input-group-text bg-white border-0 text-muted">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input placeholder="Search records by Order ID number..."
+                       @bind="searchText"
+                       @bind:event="oninput"
+                       class="form-control border-0 bg-light rounded-3 ms-2" />
+            </div>
+        </div>
+    </div>
+
+    @if (orders == null)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="mt-2 text-muted">Fetching live order records...</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive shadow-sm rounded bg-white">
+            <table class="table table-hover align-middle mb-0">
+                <thead style="background: #1e3a8a; color: white;">
+                    <tr>
+                        <th class="ps-4 py-3">Order ID</th>
+                        <th>Table Node</th>
+                        <th>Transaction Status</th>
+                        <th>Total Amount</th>
+                        <th>Timestamp Details</th>
+                        <th class="text-center pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var o in FilteredOrders)
+                    {
+                        <tr>
+                            <td class="fw-bold ps-4" style="color: #1e3a8a;">#@o.Id</td>
+                            <td><span class="badge bg-light text-dark border px-2 py-1 rounded-2">Node @o.TableId</span></td>
+                            <td>
+                                @if (o.Status == OrderStatus.Completed)
+                                {
+                                    <span class="badge bg-success px-2 py-1 rounded-2">@o.Status</span>
+                                }
+                                else if (o.Status == OrderStatus.Cancelled)
+                                {
+                                    <span class="badge bg-danger px-2 py-1 rounded-2">@o.Status</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-2">@o.Status</span>
+                                }
+                            </td>
+                            <td class="fw-bold text-dark">Rs. @o.TotalAmount.ToString("N0")</td>
+                            <td class="text-muted small">@o.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</td>
+                            <td class="text-center pe-4">
+                                <button type="button" class="btn btn-sm rounded-3 shadow-sm px-3"
+                                        style="background-color: #f1f5f9; color: #1e3a8a; border: 1px solid #e2e8f0; font-weight: 600;"
+                                        @onclick="() => SelectOrder(o.Id)">
+                                    <i class="bi bi-receipt me-1"></i> View Receipt
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (selectedOrder != null)
+{
+    <div class="modal d-block" style="background: rgba(15, 23, 42, 0.6); z-index: 1050; backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+
+                <div class="modal-header text-white px-4 py-3 rounded-top-4" style="background: #1e3a8a;">
+                    <h5 class="modal-title fw-bold m-0">
+                        <i class="bi bi-shield-check me-1"></i> Invoice — #@selectedOrder.Id
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white shadow-none" @onclick="CloseModal"></button>
+                </div>
+
+                <!-- HIDDEN PRINTABLE RECEIPT — Thermal 80mm Design -->
+                <div id="printableReceipt" style="display:none;">
+                    <!-- BLACK HEADER -->
+                    <div class="receipt-header">
+                        <h2>PIZZA PALACE</h2>
+                        <div class="tagline">— QUALITY FOOD, SERVED FRESH —</div>
+                        <div class="contact-us">📞 Contact Us</div>
+                        <div class="phones">03007698960 | 03397949881</div>
+                        <div class="address">MAQBOOL PUR ROAD, ADDA 83 PULLI</div>
+                    </div>
+
+                    <div class="dashed"></div>
+
+                    <div class="meta-row">
+                        <span>Customer: Walk-in Customer</span>
+                    </div>
+                    <div class="meta-row">
+                        <span>Order Type: Dine In</span>
+                        <span>Ph: @(!string.IsNullOrEmpty(selectedOrder.CustomerName) ? selectedOrder.CustomerName : "-")</span>
+                    </div>
+
+                    <div class="dashed"></div>
+
+                    <div class="meta-row">
+                        <span><b>Order #@selectedOrder.Id</b></span>
+                        <span><b>Table: Node @selectedOrder.TableId</b></span>
+                    </div>
+                    <div class="meta-row">
+                        <span>@selectedOrder.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                        <span>@selectedOrder.CreatedAt.ToLocalTime().ToString("hh:mm tt")</span>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-center" style="width:30px;">Qty</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (selectedOrder.Items != null)
+                            {
+                                @foreach (var item in selectedOrder.Items)
+                                {
+                                    <tr>
+                                        <td>@(item.MenuItem?.Name ?? item.MenuItemName)</td>
+                                        <td class="text-center">@item.Quantity</td>
+                                        <td class="text-right">Rs.@((item.Quantity * item.Price).ToString("N0"))</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+
+                    <!-- BLACK TOTAL BOX -->
+                    <div class="total-box">
+                        <span class="label">GRAND TOTAL</span>
+                        <span class="amount">Rs. @selectedOrder.TotalAmount.ToString("N0")</span>
+                    </div>
+                    <div class="status-line">@selectedOrder.Status | Paid By: Cash</div>
+
+                    <div class="dashed"></div>
+
+                    <div class="footer">
+                        <div class="thank-you">Thank you for visiting! 🍕</div>
+                        We hope you enjoyed your meal.<br />
+                        Quality food, served fresh.
+                    </div>
+
+                    <div class="powered-by">
+                        Software Powered By: Muhammad Ahmad — UET Lahore
+                    </div>
+                </div>
+
+                <!-- SCREEN RECEIPT MODAL -->
+                <div class="modal-body p-4 bg-white rounded-bottom-4">
+
+                    <div class="text-center mb-3">
+                        <h4 class="fw-bold mb-1" style="color: #1e3a8a; font-weight: 800;">🍕 PIZZA PALACE</h4>
+                        <div class="small text-muted fw-semibold">03007698960, 03397949881</div>
+                        <div class="small text-secondary">MAQBOOL PUR ROAD ADDA 83 PULLI</div>
+                    </div>
+
+                    <hr style="border-top: 1px dashed #cbd5e1;" />
+
+                    <div class="d-flex justify-content-between align-items-center bg-light rounded-3 mb-3 small text-dark" style="padding: 10px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span><i class="bi bi-person-walking text-primary"></i> Walk-In</span>
+                            <span class="text-muted">|</span>
+                            <span><i class="bi bi-cup-hot text-primary"></i> Dine In</span>
+                        </div>
+                        <div>
+                            @if (selectedOrder.Status == OrderStatus.Completed)
+                            {
+                                <span class="badge bg-success rounded-pill" style="font-size:0.68rem;">
+                                    <i class="bi bi-check-circle-fill me-1"></i> COMPLETED
+                                </span>
+                            }
+                            else if (selectedOrder.Status == OrderStatus.Cancelled)
+                            {
+                                <span class="badge bg-danger rounded-pill" style="font-size:0.68rem;">
+                                    <i class="bi bi-x-circle-fill me-1"></i> CANCELLED
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark rounded-pill" style="font-size:0.68rem;">
+                                    <i class="bi bi-exclamation-circle-fill me-1"></i> @selectedOrder.Status.ToString().ToUpper()
+                                </span>
+                            }
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(selectedOrder.CustomerName))
+                    {
+                        <div class="small mb-2 text-dark">
+                            <i class="bi bi-telephone me-1 text-primary"></i>
+                            <b>Customer Phone:</b> @selectedOrder.CustomerName
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-between small mb-1 text-dark">
+                        <span><b>Order ID:</b> #@selectedOrder.Id</span>
+                        <span><b>Table Node:</b> @selectedOrder.TableId</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-3 text-muted">
+                        <span><i class="bi bi-calendar2-check me-1"></i>@selectedOrder.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                        <span><i class="bi bi-clock me-1"></i>@selectedOrder.CreatedAt.ToLocalTime().ToString("hh:mm tt")</span>
+                    </div>
+
+                    <table class="table table-sm table-borderless align-middle mb-0">
+                        <thead>
+                            <tr class="border-bottom text-secondary small text-uppercase">
+                                <th class="py-2">Item</th>
+                                <th class="text-center py-2" style="width:50px;">Qty</th>
+                                <th class="text-end py-2">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (selectedOrder.Items != null)
+                            {
+                                @foreach (var item in selectedOrder.Items)
+                                {
+                                    <tr style="border-bottom: 1px solid #f8fafc;">
+                                        <td class="py-2 text-dark fw-medium">@(item.MenuItem?.Name ?? item.MenuItemName)</td>
+                                        <td class="text-center py-2 text-secondary">@item.Quantity</td>
+                                        <td class="text-end py-2 fw-bold text-dark">Rs. @((item.Quantity * item.Price).ToString("N0"))</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="text-end my-3 pt-2">
+                        <h5 class="m-0" style="color: #1e3a8a; font-weight: 800;">Grand Total: Rs. @selectedOrder.TotalAmount.ToString("N0")</h5>
+                        <small class="text-muted bg-light px-2 py-1 rounded-2 d-inline-block mt-1">Paid Mode: Cash</small>
+                    </div>
+
+                    <hr style="border-top: 1px dashed #cbd5e1;" />
+
+                    <div class="text-center small text-muted my-2" style="line-height:1.5;">
+                        Thank you for dining with us! 🍕<br />
+                        We hope you enjoyed your meal.<br />
+                        <span class="text-dark fw-semibold">Quality food, served fresh.</span>
+                    </div>
+
+                    <div class="text-center mt-2 pt-2 border-top text-secondary" style="font-size:0.78rem;">
+                        Software Powered By: <span class="fw-semibold text-dark">Muhammad Ahmad — UET Lahore</span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="button" class="btn btn-light text-dark border w-100 rounded-3 fw-semibold py-2" @onclick="CloseModal">
+                            Close
+                        </button>
+                        <button type="button" class="btn w-100 rounded-3 fw-bold py-2 shadow-sm text-white"
+                                style="background-color: #1e3a8a;"
+                                @onclick="PrintReceipt">
+                            <i class="bi bi-printer me-1"></i> Print Receipt
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string searchText = "";
+    private List<Order>? orders;
+    private Order? selectedOrder;
+
+    private async Task PrintReceipt()
+    {
+        await JS.InvokeVoidAsync("printOrderReceiptById", "printableReceipt");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await _context.Orders
+            .AsNoTracking()
+            .Include(x => x.Items)
+                .ThenInclude(i => i.MenuItem)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync();
+    }
+
+    private IEnumerable<Order> FilteredOrders =>
+        orders?.Where(o =>
+            string.IsNullOrEmpty(searchText) ||
+            o.Id.ToString().Contains(searchText))
+        ?? Enumerable.Empty<Order>();
+
+    private void SelectOrder(int id)
+    {
+        selectedOrder = orders?.FirstOrDefault(x => x.Id == id);
+    }
+
+    private void CloseModal()
+    {
+        selectedOrder = null;
+    }
+}

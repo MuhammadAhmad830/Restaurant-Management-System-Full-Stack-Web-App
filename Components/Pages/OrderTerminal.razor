@@ -1,0 +1,235 @@
+﻿@page "/order-terminal"
+@using Microsoft.EntityFrameworkCore
+@using ResturantManagmentSystemApp.Model
+@inject AppDbContext Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<div class="container-fluid p-4">
+    <div class="row">
+        @* 1. Tables Selection *@
+        <div class="col-md-3">
+            <div class="card shadow-sm p-3 border-0" style="background: #f8f9fa; border-radius: 15px;">
+                <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-grid-3x3-gap me-2"></i>Select Table</h5>
+                <div class="d-flex flex-wrap gap-2 overflow-auto" style="max-height: 70vh;">
+                    @if (TablesList != null)
+                    {
+                        @foreach (var t in TablesList)
+                        {
+                            <button type="button"
+                                    class="btn p-3 @(selectedTableId == t.Id ? "btn-primary shadow" : (t.IsReserved ? "btn-warning" : "btn-outline-dark"))"
+                                    style="width: 95px; border-radius: 12px; transition: 0.3s;"
+                                    @onclick="() => SelectTable(t)">
+                                <strong>@t.TableName</strong><br />
+                                <small>Cap: @t.Capacity</small>
+                                @if (t.IsReserved)
+                                {
+                                    <div style="font-size: 0.6rem; font-weight: bold; margin-top: 4px;">RESERVED</div>
+                                }
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">Loading tables...</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* 2. Menu Selection *@
+        <div class="col-md-6">
+            <div class="card shadow-sm p-3 border-0" style="border-radius: 15px;">
+                <h5 class="fw-bold text-primary mb-3"><i class="bi bi-search me-2"></i>Menu Selection</h5>
+                <div class="row g-3 overflow-auto" style="max-height: 75vh;">
+                    @foreach (var item in MenuItems)
+                    {
+                        <div class="col-md-4">
+                            <div class="card h-100 text-center p-0 shadow-sm border-0 menu-item-card"
+                                 style="cursor:pointer; overflow: hidden; border-radius: 12px;" @onclick="() => AddToOrder(item)">
+                                <div class="card-body p-2">
+                                    <h6 class="mb-1 fw-bold text-dark">@item.Name</h6>
+                                    <span class="text-success small fw-bold">Rs. @item.Price.ToString("N0")</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* 3. Order Summary *@
+        <div class="col-md-3">
+            <div class="card shadow p-3 bg-white border-0" style="border-radius: 15px; position: sticky; top: 20px;">
+                <h5 class="fw-bold mb-3 text-center text-dark">Active Order</h5>
+
+                @* Customer Phone Field *@
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">
+                        <i class="bi bi-telephone me-1"></i>Customer Phone (Optional)
+                    </label>
+                    <input type="text"
+                           class="form-control form-control-sm rounded-3"
+                           placeholder="e.g. 03001234567"
+                           @bind="customerPhone"
+                           @bind:event="oninput"
+                           maxlength="15" />
+                </div>
+
+                <div style="min-height: 250px; max-height: 45vh; overflow-y: auto;">
+                    @if (selectedTableId == 0)
+                    {
+                        <div class="text-center text-muted mt-5">
+                            <i class="bi bi-info-circle h1 d-block mb-2"></i>
+                            <p>Select a table first</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-center badge bg-primary d-block py-2 mb-3 shadow-sm">@selectedTableName Selected</p>
+                        @foreach (var item in currentOrderItems)
+                        {
+                            <div class="d-flex justify-content-between border-bottom py-2 small align-items-center">
+                                <div>
+                                    <span class="fw-bold">@item.MenuItem?.Name</span><br />
+                                    <small class="text-muted">@item.Price x @item.Quantity</small>
+                                </div>
+                                <span class="fw-bold">Rs. @((item.Price * item.Quantity).ToString("N0"))</span>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="border-top pt-3 mt-3">
+                    <div class="d-flex justify-content-between h5 fw-bold text-primary">
+                        <span>Total:</span>
+                        <span>Rs. @GrandTotal.ToString("N0")</span>
+                    </div>
+                    @if (currentOrderItems.Count > 0)
+                    {
+                        <button class="btn btn-success w-100 mt-2 py-3 fw-bold shadow" @onclick="FinalizeOrder">
+                            <i class="bi bi-check2-circle me-2"></i> FINALIZE ORDER
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .menu-item-card {
+        transition: all 0.2s ease-in-out;
+    }
+
+        .menu-item-card:hover {
+            transform: translateY(-5px);
+            border: 1px solid #0d6efd !important;
+        }
+
+    .btn-warning {
+        background-color: #ffc107;
+        border-color: #ffc107;
+        color: #000;
+    }
+</style>
+
+@code {
+    private List<Table> TablesList = new();
+    private List<MenuItem> MenuItems = new();
+    private List<OrderItem> currentOrderItems = new();
+
+    private int selectedTableId = 0;
+    private string selectedTableName = "";
+    private string customerPhone = "";
+    private decimal GrandTotal => currentOrderItems.Sum(i => i.Price * i.Quantity);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        TablesList = await Db.Tables
+            .AsNoTracking()
+            .OrderBy(x => x.TableName)
+            .ToListAsync();
+
+        MenuItems = await Db.MenuItems
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    private void SelectTable(Table t)
+    {
+        selectedTableId = t.Id;
+        selectedTableName = t.TableName;
+        currentOrderItems.Clear();
+        StateHasChanged();
+    }
+
+    private void AddToOrder(MenuItem item)
+    {
+        if (selectedTableId == 0) return;
+
+        var existing = currentOrderItems.FirstOrDefault(i => i.MenuItemId == item.Id);
+        if (existing != null)
+        {
+            existing.Quantity++;
+        }
+        else
+        {
+            currentOrderItems.Add(new OrderItem
+            {
+                MenuItemId = item.Id,
+                MenuItem = item,
+                Quantity = 1,
+                Price = item.Price
+            });
+        }
+        StateHasChanged();
+    }
+
+    private async Task FinalizeOrder()
+    {
+        try
+        {
+            var newOrder = new Order
+            {
+                TableId = selectedTableId,
+                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Local),
+                TotalAmount = GrandTotal,
+                Status = OrderStatus.Pending,
+                CustomerName = string.IsNullOrWhiteSpace(customerPhone) ? null : customerPhone
+            };
+
+            Db.Orders.Add(newOrder);
+            await Db.SaveChangesAsync();
+
+            foreach (var item in currentOrderItems)
+            {
+                item.OrderId = newOrder.Id;
+                item.MenuItem = null;
+                Db.OrderItems.Add(item);
+            }
+
+            var table = await Db.Tables.FindAsync(selectedTableId);
+            if (table != null)
+            {
+                table.IsOccupied = true;
+            }
+
+            await Db.SaveChangesAsync();
+
+            await JS.InvokeVoidAsync("alert", "✅ Order Successfully Saved!");
+            Nav.NavigateTo("/order-records", true);
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.InnerException?.Message ?? ex.Message;
+            await JS.InvokeVoidAsync("alert", "Error: " + msg);
+        }
+    }
+}

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pizza Palace Receipt</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            width: 302px;
+            margin: 0 auto;
+            padding: 10px 8px;
+            color: #000;
+            background: white;
+        }
+
+        /* ── HEADER ── */
+        .receipt-header {
+            background: #000;
+            color: #fff;
+            text-align: center;
+            padding: 10px 6px 8px;
+            margin-bottom: 0;
+        }
+
+            .receipt-header h2 {
+                font-size: 18px;
+                font-weight: 900;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                margin-bottom: 3px;
+            }
+
+            .receipt-header .tagline {
+                font-size: 9px;
+                letter-spacing: 1px;
+                color: #ccc;
+                margin-bottom: 5px;
+            }
+
+            .receipt-header .contact-us {
+                font-size: 10px;
+                font-weight: bold;
+                color: #fff;
+                margin-bottom: 2px;
+            }
+
+            .receipt-header .phones {
+                font-size: 10px;
+                color: #ddd;
+                margin-bottom: 3px;
+            }
+
+            .receipt-header .address {
+                font-size: 9px;
+                color: #bbb;
+            }
+
+        /* ── DIVIDERS ── */
+        .dashed {
+            border-top: 1px dashed #000;
+            margin: 6px 0;
+        }
+
+        .solid {
+            border-top: 2px solid #000;
+            margin: 6px 0;
+        }
+
+        /* ── META INFO ── */
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+
+            .meta-row span {
+                font-size: 10px;
+            }
+
+        /* ── ITEMS TABLE ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+        }
+
+        thead tr th {
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+            padding: 4px 2px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tbody tr td {
+            padding: 4px 2px;
+            font-size: 11px;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* ── TOTAL ── */
+        .total-box {
+            background: #000;
+            color: #fff;
+            padding: 7px 6px;
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+            .total-box .label {
+                font-size: 11px;
+                font-weight: bold;
+                letter-spacing: 1px;
+            }
+
+            .total-box .amount {
+                font-size: 14px;
+                font-weight: 900;
+            }
+
+        .status-line {
+            text-align: right;
+            font-size: 9px;
+            color: #555;
+            margin-top: 3px;
+        }
+
+        /* ── FOOTER ── */
+        .footer {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 10px;
+            line-height: 1.7;
+            color: #333;
+        }
+
+            .footer .thank-you {
+                font-size: 11px;
+                font-weight: bold;
+            }
+
+        .powered-by {
+            text-align: center;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed #000;
+            font-size: 9px;
+            color: #777;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── NO PRINT BUTTONS ── */
+        .no-print {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        /* ── PRINT MEDIA ── */
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 0mm;
+            }
+
+            html, body {
+                width: 80mm;
+                margin: 0;
+                padding: 4px;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="receipt-content"></div>
+
+    <div class="no-print">
+        <button onclick="window.print()"
+                style="padding:8px 24px; background:#000; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer;">
+            🖨️ Print
+        </button>
+        <button onclick="window.close()"
+                style="padding:8px 24px; background:#6c757d; color:white; border:none; border-radius:6px; font-size:14px; cursor:pointer; margin-left:8px;">
+            Close
+        </button>
+    </div>
+
+    <script>
+        var content = localStorage.getItem('receiptContent');
+        if (content) {
+            document.getElementById('receipt-content').innerHTML = content;
+            localStorage.removeItem('receiptContent');
+            setTimeout(function () { window.print(); }, 600);
+        } else {
+            document.getElementById('receipt-content').innerHTML = '<p style="text-align:center;">Receipt not found.</p>';
+        }
+    </script>
+</body>
+</html>

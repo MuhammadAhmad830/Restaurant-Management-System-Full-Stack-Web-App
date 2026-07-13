@@ -1,0 +1,101 @@
+﻿@rendermode InteractiveServer
+@page "/categories"
+@inject AppDbContext Db
+@using Microsoft.EntityFrameworkCore
+@using ResturantManagmentSystemApp.Model
+
+<div class="container mt-4">
+    <h3 class="mb-4">Manage Categories</h3>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Add New Category</h5>
+            <div class="input-group" style="max-width: 500px;">
+                <input type="text" class="form-control" placeholder="e.g. Fast Food, Desi, Drinks" @bind="newCategoryName" />
+                <button class="btn btn-success" @onclick="SaveCategory">
+                    <i class="oi oi-plus"></i> Add Category
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Category Name</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (categories == null || !categories.Any())
+                    {
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No categories found. Add one above!</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var category in categories)
+                        {
+                            <tr>
+                                <td>@category.Id</td>
+                                <td>@category.Name</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(category.Id)">
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Category> categories = new();
+    private string newCategoryName = "";
+
+    // Ye function tab chalta hai jab page load hota hai
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    // Database se data mangwane ke liye
+    private async Task LoadCategories()
+    {
+        categories = await Db.Categories.ToListAsync();
+    }
+
+    // Nayi category save karne ke liye
+    private async Task SaveCategory()
+    {
+        if (!string.IsNullOrWhiteSpace(newCategoryName))
+        {
+            var category = new Category { Name = newCategoryName };
+            Db.Categories.Add(category);
+            await Db.SaveChangesAsync(); // PostgreSQL database mein save karega
+
+            newCategoryName = ""; // Input box ko khali kar dega
+            await LoadCategories(); // Table ko refresh karega taake nayi entry dikhe
+        }
+    }
+
+    // Category delete karne ke liye
+    private async Task DeleteCategory(int id)
+    {
+        var category = await Db.Categories.FindAsync(id);
+        if (category != null)
+        {
+            Db.Categories.Remove(category);
+            await Db.SaveChangesAsync();
+            await LoadCategories();
+        }
+    }
+}

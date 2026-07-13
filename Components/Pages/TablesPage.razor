@@ -1,0 +1,199 @@
+﻿@page "/tables"
+@using Microsoft.EntityFrameworkCore
+@using ResturantManagmentSystemApp.Model
+@inject AppDbContext Db
+@inject IJSRuntime JS
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Manage Tables - RMS</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark">Table Management</h2>
+        <span class="badge bg-info p-2">Total Tables: @tables.Count</span>
+    </div>
+
+    @* Add New Table Card *@
+    <div class="card border-0 shadow-sm mb-5 rounded-3">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>Add New Table</h5>
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold">Table Name/Number</label>
+                    <input type="text" class="form-control" placeholder="e.g. Table 05" @bind="newTable.TableName" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Capacity</label>
+                    <input type="number" class="form-control" @bind="newTable.Capacity" min="1" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-primary w-100 fw-bold" @onclick="SaveTable" disabled="@isSaving">
+                        Save Table
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Tables Grid *@
+    <h5 class="fw-bold mb-3">Status Dashboard</h5>
+    <div class="row g-4">
+        @foreach (var t in tables)
+        {
+            <div class="col-xl-3 col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm rounded-3 @(t.IsReserved ? "border-top border-warning border-5" : "border-top border-success border-5")">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            @if (t.IsReserved)
+                            {
+                                <i class="bi bi-calendar-check-fill display-6 text-warning"></i>
+                                <div class="badge bg-warning text-dark mt-2">RESERVED</div>
+                            }
+                            else
+                            {
+                                <i class="bi bi-grid-3x3-gap-fill display-6 text-success opacity-50"></i>
+                                <div class="badge bg-success mt-2">AVAILABLE</div>
+                            }
+                        </div>
+
+                        <h4 class="fw-bold">@t.TableName</h4>
+                        <p class="text-muted small">Capacity: @t.Capacity Persons</p>
+
+                        @if (t.IsReserved)
+                        {
+                            <div class="bg-light p-2 rounded mb-3 small text-start border">
+                                <strong>Guest:</strong> @t.ReservedFor <br />
+                                <strong>Date:</strong> @t.ReservationTime?.ToString("dd MMM, hh:mm tt")
+                            </div>
+                            <button class="btn btn-outline-secondary btn-sm w-100 mb-2" @onclick="() => CancelReservation(t.Id)">
+                                Release Table
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-primary btn-sm w-100 mb-2" @onclick="() => OpenReserveModal(t)">
+                                <i class="bi bi-bookmark-plus"></i> Reserve Now
+                            </button>
+                        }
+                        <button class="btn btn-link btn-sm text-danger text-decoration-none" @onclick="() => DeleteTable(t.Id)">Delete</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@* Reservation Modal *@
+@if (showReserveModal)
+{
+    <div class="modal d-block" style="background:rgba(0,0,0,0.7); z-index:9999;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Booking: @selectedTable?.TableName</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => showReserveModal = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Guest Name</label>
+                        <input type="text" class="form-control" @bind="customerName" placeholder="Enter name" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Arrival Date & Time</label>
+                        @* Yahan 'datetime-local' se Calendar khulega *@
+                        <input type="datetime-local" class="form-control" @bind="reserveTime" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button class="btn btn-secondary" @onclick="() => showReserveModal = false">Cancel</button>
+                    <button class="btn btn-primary px-4 fw-bold" @onclick="ConfirmReservation">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Table> tables = new();
+    private Table newTable = new();
+    private bool isSaving = false;
+    private bool showReserveModal = false;
+    private Table? selectedTable;
+    private string customerName = "";
+    private DateTime reserveTime = DateTime.Now;
+
+    protected override async Task OnInitializedAsync() => await LoadTables();
+    private async Task LoadTables() => tables = await Db.Tables.OrderBy(x => x.TableName).ToListAsync();
+
+    private async Task SaveTable()
+    {
+        if (string.IsNullOrWhiteSpace(newTable.TableName)) return;
+        isSaving = true;
+        Db.Tables.Add(newTable);
+        await Db.SaveChangesAsync();
+        newTable = new Table();
+        await LoadTables();
+        isSaving = false;
+    }
+
+    private void OpenReserveModal(Table table)
+    {
+        selectedTable = table;
+        customerName = "";
+        reserveTime = DateTime.Now;
+        showReserveModal = true;
+    }
+
+    private async Task ConfirmReservation()
+    {
+        if (selectedTable == null || string.IsNullOrWhiteSpace(customerName)) return;
+
+        try
+        {
+            var t = await Db.Tables.FindAsync(selectedTable.Id);
+            if (t != null)
+            {
+                t.IsReserved = true;
+                t.ReservedFor = customerName;
+                t.ReservationTime = reserveTime;
+
+                await Db.SaveChangesAsync();
+
+                // Modal band karne ki koshish
+                showReserveModal = false;
+                await LoadTables();
+
+                // ✅ Ye line lazmi add karein UI refresh ke liye
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private async Task CancelReservation(int id)
+    {
+        var t = await Db.Tables.FindAsync(id);
+        if (t != null)
+        {
+            t.IsReserved = false;
+            t.ReservedFor = null;
+            t.ReservationTime = null;
+            await Db.SaveChangesAsync();
+            await LoadTables();
+        }
+    }
+
+    private async Task DeleteTable(int id)
+    {
+        var t = await Db.Tables.FindAsync(id);
+        if (t != null)
+        {
+            Db.Tables.Remove(t);
+            await Db.SaveChangesAsync();
+            await LoadTables();
+        }
+    }
+}

@@ -1,0 +1,116 @@
+﻿@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<div style="padding: 24px 16px 16px 16px; border-bottom: 1px solid rgba(255,255,255,0.12);">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="background:rgba(255,255,255,0.15); border-radius:10px; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+            <i class="bi bi-shop" style="font-size:1.3rem; color:white;"></i>
+        </div>
+        <div>
+            <div style="color:white; font-weight:700; font-size:0.85rem; letter-spacing:0.5px;">PIZZA PALACE</div>
+            <div style="color:rgba(255,255,255,0.6); font-size:0.7rem; letter-spacing:1px;">MANAGEMENT SYSTEM</div>
+        </div>
+    </div>
+</div>
+
+<div style="padding: 12px 12px; display:flex; flex-direction:column; height:calc(100vh - 90px); overflow-y:auto;">
+    <div style="font-size:0.65rem; color:rgba(255,255,255,0.4); letter-spacing:1.5px; padding: 8px 12px 6px; text-transform:uppercase;">Main Menu</div>
+
+    <nav style="display:flex; flex-direction:column; gap:4px; flex:1;">
+        <NavLink href="" Match="NavLinkMatch.All" class="rms-nav-link">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </NavLink>
+        <NavLink href="order-terminal" class="rms-nav-link">
+            <i class="bi bi-cart-plus"></i> Order Terminal
+        </NavLink>
+        <NavLink href="order-records" class="rms-nav-link">
+            <i class="bi bi-journal-text"></i> Order Records
+        </NavLink>
+
+        <div style="font-size:0.65rem; color:rgba(255,255,255,0.4); letter-spacing:1.5px; padding: 12px 12px 6px; text-transform:uppercase;">Management</div>
+
+        <NavLink href="categories" class="rms-nav-link">
+            <i class="bi bi-tags"></i> Categories
+        </NavLink>
+        <NavLink href="menuitems" class="rms-nav-link">
+            <i class="bi bi-egg-fried"></i> Menu Items
+        </NavLink>
+        <NavLink href="inventory" class="rms-nav-link">
+            <i class="bi bi-box-seam"></i> Inventory
+        </NavLink>
+        <NavLink href="tables" class="rms-nav-link">
+            <i class="bi bi-grid-3x3-gap"></i> Tables Status
+        </NavLink>
+    </nav>
+
+    <div style="padding-top:12px; border-top:1px solid rgba(255,255,255,0.1);">
+        <button class="rms-logout-btn" @onclick="Logout">
+            <i class="bi bi-box-arrow-left"></i> Logout
+        </button>
+    </div>
+</div>
+
+<style>
+    .rms-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: 8px;
+        color: rgba(255,255,255,0.75);
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.18s ease;
+    }
+
+        .rms-nav-link:hover {
+            background: rgba(255,255,255,0.12);
+            color: white;
+        }
+
+        .rms-nav-link.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            font-weight: 600;
+            box-shadow: inset 3px 0 0 white;
+        }
+
+    .rms-logout-btn {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,100,100,0.4);
+        background: rgba(220,53,69,0.15);
+        color: #ff8a8a;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        letter-spacing: 0.3px;
+    }
+
+        .rms-logout-btn:hover {
+            background: rgba(220,53,69,0.35);
+            color: white;
+            border-color: rgba(255,100,100,0.7);
+        }
+</style>
+
+@code {
+    private async Task Logout()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("sessionStorage.clear");
+            Nav.NavigateTo("/login", true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+}

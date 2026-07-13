@@ -1,0 +1,25 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        @* DefaultLayout ko MainLayout par set rakha hai *@
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        @* Jab koi page na mile to ye show hoga *@
+        <LayoutView Layout="@typeof(Layout.MainLayout)">
+            <div class="container mt-5 text-center">
+                <div class="alert alert-warning">
+                    <h3 class="fw-bold">404 - Page Not Found</h3>
+                    <p>Maaf kijiyega, ye page maujood nahi hai.</p>
+                    <a href="/" class="btn btn-primary mt-3">Wapas Dashboard par Jayein</a>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    // Yahan ab koi logic nahi hai, saara authentication MainLayout sambhale ga.
+}
